@@ -9,6 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/ctx/AuthContext';
+import { SubscriptionProvider } from '@/ctx/SubscriptionContext';
 
 export const unstable_settings = {
   anchor: '(auth)',
@@ -20,10 +21,12 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack screenOptions={{ headerShown: false }} />
-          <StatusBar style="auto" />
-        </ThemeProvider>
+        <SubscriptionProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <Stack screenOptions={{ headerShown: false }} />
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </SubscriptionProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

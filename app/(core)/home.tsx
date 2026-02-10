@@ -5,12 +5,14 @@ import { useAuth } from '@/ctx/AuthContext';
 import { useCallback, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getCoaches, Coach } from '@/lib/coaches';
+import { useSubscription } from '@/ctx/SubscriptionContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { isPro } = useSubscription();
   const [profile, setProfile] = useState<any>(null);
   const [coaches, setCoaches] = useState<Coach[]>([]);
 
@@ -64,7 +66,13 @@ export default function HomeScreen() {
         <View className="px-6 mb-12">
           <View className="flex-row items-center justify-between mb-8 px-2">
             <Text className="text-sm font-bold text-zinc-900 uppercase tracking-widest">Select a Coach</Text>
-            <Pressable onPress={() => router.push('/(core)/create-coach')}>
+            <Pressable onPress={() => {
+              if (isPro) {
+                router.push('/(core)/create-coach')
+              } else {
+                router.push('/paywall')
+              }
+            }}>
               <Text className="text-xs font-semibold text-zinc-400">Manage</Text>
             </Pressable>
           </View>
@@ -94,7 +102,13 @@ export default function HomeScreen() {
         {/* Create Custom Action */}
         <View className="px-6">
           <Pressable
-            onPress={() => router.push('/(core)/create-coach')}
+            onPress={() => {
+              if (isPro) {
+                router.push('/(core)/create-coach')
+              } else {
+                router.push('/paywall')
+              }
+            }}
             className="bg-zinc-900 py-6 rounded-full items-center justify-center"
           >
             <Text className="text-white font-medium text-base tracking-wide">Design your own coach</Text>

@@ -11,6 +11,8 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/ctx/AuthContext'
+import { useSubscription } from '@/ctx/SubscriptionContext'
+import { IS_EXPO_GO } from '@/lib/env'
 import * as Speech from 'expo-speech'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { getCoaches, Coach, DEFAULT_COACHES } from '@/lib/coaches'
@@ -53,33 +55,36 @@ export default function CoachChatScreen() {
   })
 
   useEffect(() => {
-    getCoaches().then(coaches => {
+    async function init() {
+      const coaches = await getCoaches()
       const found = coaches.find(c => c.id === coachId)
       if (found) {
         setCurrentCoach(found)
 
         // Load history
-        AsyncStorage.getItem(`chat_history_${coachId}`).then(json => {
-          if (json) {
-            setMessages(JSON.parse(json))
-          } else {
-            // New Session: Add greeting
-            const greeting = {
-              role: 'assistant',
-              content: `Welcome, ${user?.user_metadata?.full_name?.split(' ')[0] || 'Joshua'}. I'm here to listen. What's currently on your mind?`
-            } as Message
-            setMessages([greeting])
-            AsyncStorage.setItem(`chat_history_${coachId}`, JSON.stringify([greeting]))
-          }
-        })
+        const json = await AsyncStorage.getItem(`chat_history_${coachId}`)
+        if (json) {
+          setMessages(JSON.parse(json))
+        } else {
+          // New Session: Add greeting
+          const greeting = {
+            role: 'assistant',
+            content: `Welcome, ${user?.user_metadata?.full_name?.split(' ')[0] || 'Joshua'}. I'm here to listen. What's currently on your mind?`
+          } as Message
+          setMessages([greeting])
+          await AsyncStorage.setItem(`chat_history_${coachId}`, JSON.stringify([greeting]))
+        }
       }
-    })
 
-    AsyncStorage.getItem('voice_enabled').then(v =>
+      const v = await AsyncStorage.getItem('voice_enabled')
       setVoiceEnabled(v === 'true')
-    )
-    return () => Speech.stop()
-  }, [coachId])
+    }
+
+    init()
+    return () => {
+      Speech.stop()
+    }
+  }, [coachId, user])
 
   const speak = (text: string) => {
     if (!voiceEnabled) return
@@ -98,7 +103,17 @@ export default function CoachChatScreen() {
     ]);
   }
 
+  const { isPro } = useSubscription()
+
   const handleStartCall = async () => {
+    if (IS_EXPO_GO) {
+      Alert.alert('Not Supported', 'Voice calls are not supported in Expo Go. Please use a development build.');
+      return;
+    }
+    if (!isPro) {
+      router.push('/paywall')
+      return
+    }
     setCallOpen(true)
     await startCall()
   }
@@ -106,6 +121,16 @@ export default function CoachChatScreen() {
   const handleEndCall = () => {
     endCall()
     setCallOpen(false)
+  }
+
+  const handleVoiceRecording = (uri: string) => {
+    if (IS_EXPO_GO) return; // Should be handled by UI disabling
+    if (!isPro) {
+      router.push('/paywall')
+      return
+    }
+    setLastVoiceRecordingUri(uri)
+    setInputText('Voice note recorded. Tap to edit.')
   }
 
   async function sendMessage(text: string = inputText) {
@@ -221,10 +246,7 @@ export default function CoachChatScreen() {
             onSend={sendMessage}
             input={inputText}
             setInput={setInputText}
-            onVoiceRecording={uri => {
-              setLastVoiceRecordingUri(uri)
-              setInputText('Voice note recorded. Tap to edit.')
-            }}
+            onVoiceRecording={handleVoiceRecording}
           />
         </View>
 

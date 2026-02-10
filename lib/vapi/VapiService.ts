@@ -1,4 +1,5 @@
-import Vapi from '@vapi-ai/react-native'
+
+import { IS_EXPO_GO, expoGoWarning } from '@/lib/env';
 
 type VapiEvent =
   | 'call-start'
@@ -26,12 +27,22 @@ export type VapiStartCallParams = {
 }
 
 export class VapiService {
-  private vapi: Vapi | null = null
+  private vapi: any = null
   private active = false
 
   constructor(publicKey: string) {
+    if (IS_EXPO_GO) {
+      expoGoWarning("Vapi Voice Service");
+      return;
+    }
+
     if (publicKey) {
-      this.vapi = new Vapi(publicKey)
+      try {
+        const Vapi = require('@vapi-ai/react-native').default;
+        this.vapi = new Vapi(publicKey);
+      } catch (e) {
+        console.error("Failed to load Vapi native module", e);
+      }
     }
   }
 
@@ -44,8 +55,13 @@ export class VapiService {
   }
 
   async startCall(params: VapiStartCallParams) {
+    if (IS_EXPO_GO) {
+      expoGoWarning("Voice Calling");
+      return;
+    }
+
     if (!this.vapi) {
-      throw new Error('Vapi not configured')
+      throw new Error('Vapi not configured or failed to load');
     }
 
     this.active = true

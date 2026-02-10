@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, Pressable, ScrollView, Alert, KeyboardAvoidingView, Platform, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { saveCustomCoach } from '@/lib/coaches';
+import { useSubscription } from '@/ctx/SubscriptionContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +17,14 @@ export default function CreateCoachScreen() {
         systemPrompt: ''
     });
 
+    const { isPro } = useSubscription();
+
     const handleCreate = async () => {
+        if (!isPro) {
+            router.push('/paywall');
+            return;
+        }
+
         if (!form.name || !form.systemPrompt) {
             Alert.alert('Missing Incomplete', 'Every intelligence needs a name and a mind.');
             return;
