@@ -1,28 +1,25 @@
-import { View, Text } from 'react-native';
+import { useEffect } from 'react';
+import { Text, View } from 'react-native';
 import Animated, {
-    useSharedValue,
+    Easing,
     useAnimatedStyle,
+    useSharedValue,
     withRepeat,
     withTiming,
-    Easing,
-    withSequence
 } from 'react-native-reanimated';
-import { useEffect } from 'react';
 
 export function ThinkingIndicator() {
+    const pulse = useSharedValue(1);
     const opacity = useSharedValue(0.3);
-    const scale = useSharedValue(0.95);
 
     useEffect(() => {
-        // "Breathing" animation
-        // Slow, calm pulse
-        opacity.value = withRepeat(
-            withTiming(0.7, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+        pulse.value = withRepeat(
+            withTiming(1.08, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
             -1,
             true
         );
-        scale.value = withRepeat(
-            withTiming(1.05, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+        opacity.value = withRepeat(
+            withTiming(0.6, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
             -1,
             true
         );
@@ -30,17 +27,20 @@ export function ThinkingIndicator() {
 
     const animatedStyle = useAnimatedStyle(() => ({
         opacity: opacity.value,
-        transform: [{ scale: scale.value }],
+        transform: [{ scale: pulse.value }],
     }));
 
     return (
-        <View className="flex-row items-center gap-3 py-2 px-1">
-            <Animated.View
-                className="h-2 w-2 rounded-full bg-text-tertiary"
-                style={animatedStyle}
-            />
-            <Text className="text-xs font-medium text-text-tertiary">
-                Reflecting...
+        <View className="flex-row items-center gap-3 py-4 px-6">
+            <View className="relative items-center justify-center">
+                <Animated.View
+                    className="absolute h-4 w-4 rounded-full bg-brand-400/20"
+                    style={animatedStyle}
+                />
+                <View className="h-2 w-2 rounded-full bg-brand-500" />
+            </View>
+            <Text className="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em]">
+                Thinking clearly...
             </Text>
         </View>
     );

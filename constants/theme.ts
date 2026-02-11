@@ -1,72 +1,35 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
-import { Platform } from 'react-native';
-
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
-
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    primary: '#6366f1', // Indigo 500
+    background: '#f8fafc', // Slate 50
+    surface: '#ffffff',
+    text: '#0f172a', // Slate 900
+    subtext: '#64748b', // Slate 500
+    border: '#e2e8f0', // Slate 200
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    primary: '#818cf8', // Indigo 400
+    background: '#020617', // Slate 950
+    surface: '#0f172a', // Slate 900
+    text: '#f8fafc', // Slate 50
+    subtext: '#94a3b8', // Slate 400
+    border: '#1e293b', // Slate 700
   },
 };
 
-export const AppColors = {
-  brand: {
-    primary: '#10b981', // emerald-500
-    primaryDark: '#047857', // emerald-700
-    primaryLight: '#d1fae5', // emerald-100
-    secondary: '#0f172a', // slate-900
-    accent: '#fbbf24', // amber-400
-  },
-  ui: {
-    card: 'rgba(255, 255, 255, 0.95)',
-    cardDark: 'rgba(255, 255, 255, 0.05)',
-  },
-  backgrounds: {
-    light: '#F8FAFC', // slate-50
-    warm: '#F7F3EE', // warm off-white
-    dark: '#020617', // slate-950
-  }
+export const Spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
 };
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
+export const Radius = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  full: 9999,
+};

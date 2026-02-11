@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
@@ -163,7 +162,15 @@ Deno.serve(async (req: any) => {
     }
 
     try {
-        const { messages, coachId, audio, mode, platform, systemPrompt: customSystemPrompt } = await req.json();
+        const {
+            messages,
+            userMessage,
+            coachId,
+            audio,
+            mode,
+            platform,
+            systemPrompt: customSystemPrompt
+        } = await req.json();
 
         if (!coachId) throw new Error("Missing coachId");
 
@@ -177,6 +184,9 @@ Deno.serve(async (req: any) => {
         }
 
         let updatedMessages = messages || [];
+        if (userMessage) {
+            updatedMessages.push({ role: 'user', content: userMessage });
+        }
 
         // 1. Transcribe Audio (if present)
         if (audio) {
@@ -210,18 +220,18 @@ Deno.serve(async (req: any) => {
         }));
 
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    contents: [
-                        { role: "user", parts: [{ text: systemPrompt || "You are a helpful AI coach." }] },
-                        ...geminiMessages
-                    ],
+                    system_instruction: {
+                        parts: [{ text: systemPrompt || "You are a helpful AI coach." }]
+                    },
+                    contents: geminiMessages,
                     generationConfig: {
                         temperature: mode === 'call' ? 0.6 : 0.7,
-                        maxOutputTokens: mode === 'call' ? 150 : 500,
+                        maxOutputTokens: mode === 'call' ? 150 : 800,
                     },
                 }),
             }

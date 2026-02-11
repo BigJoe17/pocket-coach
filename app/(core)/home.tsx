@@ -1,13 +1,15 @@
-
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { FlashcardReview } from '@/components/FlashcardReview';
 import { useAuth } from '@/ctx/AuthContext';
-import { useCallback, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { getCoaches, Coach } from '@/lib/coaches';
 import { useSubscription } from '@/ctx/SubscriptionContext';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Coach, getCoaches } from '@/lib/coaches';
+import { supabase } from '@/lib/supabase';
+import Feather from '@expo/vector-icons/Feather';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useCallback, useState } from 'react';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -32,91 +34,121 @@ export default function HomeScreen() {
     }, [user])
   );
 
-  const firstName = profile?.full_name?.split(' ')[0] || 'Joshua'; // Fallback to Joshua for demo if needed
+  const firstName = profile?.full_name?.split(' ')[0] || profile?.display_name || 'there';
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <StatusBar style="dark" />
+    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-zinc-950">
+      <StatusBar style="auto" />
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
-        {/* Header */}
-        <View className="px-8 pt-6 pb-10">
-          <Text className="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em] mb-4">
-            Pocket Coach
-          </Text>
-          <Text className="text-4xl font-light text-zinc-900 tracking-tight leading-[44px]">
-            How are you feeling,{"\n"}
-            <Text className="font-medium">{firstName}?</Text>
-          </Text>
-        </View>
-
-        {/* Quick Insights / Daily Card */}
-        <View className="px-6 mb-12">
-          <View className="bg-zinc-50 rounded-[32px] p-8 border border-zinc-100">
-            <Text className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-4">Daily Intention</Text>
-            <Text className="text-xl font-light text-zinc-800 leading-relaxed italic">
-              “Focus on the process, not the outcome. Clarity follows action.”
+        {/* Header Section */}
+        <View className="px-8 pt-8 pb-4 flex-row justify-between items-center">
+          <View>
+            <Text className="text-slate-500 text-sm font-medium">
+              Good morning,
             </Text>
-            <View className="h-[1px] bg-zinc-200 w-12 my-6" />
-            <Text className="text-xs text-zinc-500 font-medium">Monday, Feb 9</Text>
+            <Text className="text-3xl font-bold text-slate-900 dark:text-slate-50">
+              {firstName}
+            </Text>
           </View>
+          <Pressable
+            onPress={() => router.push('/(core)/profile')}
+            className="w-12 h-12 rounded-full border-2 border-white dark:border-zinc-800 shadow-sm overflow-hidden"
+            style={{ backgroundColor: profile?.theme_color || '#6366f1' }}
+          >
+            {profile?.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} className="w-full h-full" />
+            ) : (
+              <View className="w-full h-full items-center justify-center">
+                <Feather name="user" size={24} color="white" />
+              </View>
+            )}
+            {isPro && (
+              <View className="absolute bottom-0 right-0 w-4 h-4 bg-amber-400 rounded-full border-2 border-white dark:border-zinc-800 items-center justify-center">
+                <Feather name="star" size={8} color="white" />
+              </View>
+            )}
+          </Pressable>
         </View>
 
-        {/* Coaches Section */}
-        <View className="px-6 mb-12">
-          <View className="flex-row items-center justify-between mb-8 px-2">
-            <Text className="text-sm font-bold text-zinc-900 uppercase tracking-widest">Select a Coach</Text>
-            <Pressable onPress={() => {
-              if (isPro) {
-                router.push('/(core)/create-coach')
-              } else {
-                router.push('/paywall')
-              }
-            }}>
-              <Text className="text-xs font-semibold text-zinc-400">Manage</Text>
+        {/* AI Status Indicator */}
+        <View className="px-8 mb-4 flex-row items-center">
+          <View className="w-2 h-2 rounded-full bg-emerald-500 mr-2" />
+          <Text className="text-slate-400 text-xs font-medium uppercase tracking-widest">
+            AI is ready to coach
+          </Text>
+        </View>
+
+        {/* Flashcards Section */}
+        <FlashcardReview
+          insight="You mentioned feeling overwhelmed by social media. Try setting a 15-min timer today."
+          source="Coach Aura"
+        />
+
+        {/* Featured Card / Insight */}
+        <View className="px-6 mb-10">
+          <Animated.View
+            entering={FadeInDown.duration(800).delay(200)}
+            className="bg-white dark:bg-zinc-900 rounded-[32px] p-8 shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-slate-100 dark:border-zinc-800"
+          >
+            <Text className="text-brand-500 text-[10px] font-bold uppercase tracking-[0.2em] mb-4">
+              Daily Intention
+            </Text>
+            <Text className="text-xl font-medium text-slate-800 dark:text-slate-200 leading-relaxed italic">
+              "Focus on the process, not the outcome. Clarity follows action."
+            </Text>
+            <View className="h-[2px] bg-slate-50 dark:bg-zinc-800 w-12 my-6" />
+            <View className="flex-row items-center justify-between">
+              <Text className="text-xs text-slate-400">Monday, Feb 10</Text>
+              <Pressable className="bg-slate-50 dark:bg-zinc-800 px-3 py-1.5 rounded-full">
+                <Text className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Save</Text>
+              </Pressable>
+            </View>
+          </Animated.View>
+        </View>
+
+        {/* Coaches Grid */}
+        <View className="px-6">
+          <View className="flex-row items-center justify-between mb-6 px-2">
+            <Text className="text-slate-900 dark:text-slate-50 text-xl font-bold">Your Coaches</Text>
+            <Pressable
+              onPress={() => isPro ? router.push('/(core)/create-coach') : router.push('/paywall')}
+              className="w-8 h-8 rounded-full bg-brand-500 items-center justify-center"
+            >
+              <Feather name="plus" size={20} color="white" />
             </Pressable>
           </View>
 
-          <View className="space-y-4">
-            {coaches.map((coach) => (
-              <Pressable
+          <View className="flex-row flex-wrap justify-between gap-y-4">
+            {coaches.map((coach, index) => (
+              <Animated.View
                 key={coach.id}
-                className="bg-white rounded-[24px] p-6 border border-zinc-100 flex-row items-center active:scale-[0.98] transition-all"
-                onPress={() => router.push({ pathname: '/(core)/chat/[coach]', params: { coach: coach.id } })}
+                entering={FadeInDown.duration(600).delay(400 + index * 100)}
+                className="w-[48%]"
               >
-                <View className="h-16 w-16 rounded-2xl bg-zinc-50 items-center justify-center mr-5">
-                  <Text className="text-3xl">{coach.emoji}</Text>
-                </View>
-                <View className="flex-1">
-                  <Text className="text-lg font-medium text-zinc-900 mb-0.5">{coach.name}</Text>
-                  <Text className="text-sm text-zinc-400 font-light" numberOfLines={1}>{coach.subtitle}</Text>
-                </View>
-                <View className="ml-2">
-                  <Text className="text-zinc-300 transform scale-150">→</Text>
-                </View>
-              </Pressable>
+                <Pressable
+                  onPress={() => router.push({ pathname: '/(core)/chat/[coach]', params: { coach: coach.id } })}
+                  className="bg-white dark:bg-zinc-900 rounded-[28px] p-5 shadow-lg shadow-slate-100 dark:shadow-black/20 border border-slate-100 dark:border-zinc-800 active:scale-95 transition-all"
+                >
+                  <View className="w-14 h-14 rounded-2xl bg-slate-50 dark:bg-zinc-800 items-center justify-center mb-4">
+                    <Text className="text-3xl">{coach.emoji}</Text>
+                  </View>
+                  <Text className="text-slate-900 dark:text-slate-50 font-bold text-base" numberOfLines={1}>
+                    {coach.name}
+                  </Text>
+                  <Text className="text-slate-400 text-xs mt-1" numberOfLines={2}>
+                    {coach.subtitle}
+                  </Text>
+                </Pressable>
+              </Animated.View>
             ))}
           </View>
         </View>
 
-        {/* Create Custom Action */}
-        <View className="px-6">
-          <Pressable
-            onPress={() => {
-              if (isPro) {
-                router.push('/(core)/create-coach')
-              } else {
-                router.push('/paywall')
-              }
-            }}
-            className="bg-zinc-900 py-6 rounded-full items-center justify-center"
-          >
-            <Text className="text-white font-medium text-base tracking-wide">Design your own coach</Text>
-          </Pressable>
-        </View>
-
         <View className="items-center mt-12 mb-8">
-          <Text className="text-[10px] font-medium text-zinc-300 tracking-widest uppercase">Safe • Private • Minimal</Text>
+          <Text className="text-[10px] font-medium text-slate-300 dark:text-zinc-600 tracking-widest uppercase">
+            Private • Focused • Human
+          </Text>
         </View>
 
       </ScrollView>

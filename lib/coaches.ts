@@ -8,7 +8,14 @@ export type Coach = {
     emoji: string;
     color: string;
     isCustom?: boolean;
-    systemPrompt?: string; // For custom coaches
+    systemPrompt?: string;
+    voiceId?: string;
+    memorySettings?: {
+        longTerm: boolean;
+        sessionBased: boolean;
+    };
+    toneLabel?: string;
+    colorAccent?: string;
 };
 
 export const DEFAULT_COACHES: Coach[] = [
@@ -18,7 +25,8 @@ export const DEFAULT_COACHES: Coach[] = [
         subtitle: 'Cut through the noise',
         tone: 'Direct, action-focused',
         emoji: '🎯',
-        color: 'indigo'
+        color: 'indigo',
+        memorySettings: { longTerm: true, sessionBased: false }
     },
     {
         id: 'energy',
@@ -26,7 +34,8 @@ export const DEFAULT_COACHES: Coach[] = [
         subtitle: 'Bring the energy',
         tone: 'High-energy, motivating',
         emoji: '🔥',
-        color: 'orange'
+        color: 'orange',
+        memorySettings: { longTerm: true, sessionBased: false }
     },
     {
         id: 'clarity',
@@ -34,20 +43,30 @@ export const DEFAULT_COACHES: Coach[] = [
         subtitle: 'Find your clarity',
         tone: 'Thoughtful, reflective',
         emoji: '🧭',
-        color: 'emerald'
+        color: 'emerald',
+        memorySettings: { longTerm: true, sessionBased: false }
     },
 ];
 
-export async function getCoaches(): Promise<Coach[]> {
+export async function getCoaches(id?: string): Promise<Coach[]> {
     try {
-        const { data: customCoaches, error } = await supabase
+        let query = supabase
             .from('custom_coaches')
-            .select('*')
-            .order('created_at', { ascending: false });
+            .select('*');
+
+        if (id) {
+            // Check if it's a default coach first
+            const def = DEFAULT_COACHES.find(c => c.id === id);
+            if (def) return [def];
+            query = query.eq('id', id);
+        } else {
+            query = query.order('created_at', { ascending: false });
+        }
+
+        const { data: customCoaches, error } = await query;
 
         if (error) {
             console.error('Error fetching custom coaches:', error);
-            // Return defaults on error to not break the app
             return DEFAULT_COACHES;
         }
 
@@ -55,14 +74,20 @@ export async function getCoaches(): Promise<Coach[]> {
             id: c.id,
             name: c.name,
             subtitle: c.subtitle,
-            tone: c.tone || 'Unique', // Default if missing
+            tone: c.tone || 'Unique',
             emoji: c.emoji,
-            color: 'zinc', // Default color for custom
+            color: c.color_accent || 'zinc',
             isCustom: true,
-            systemPrompt: c.system_prompt
+            systemPrompt: c.system_prompt,
+            voiceId: c.voice_id,
+            memorySettings: {
+                longTerm: c.memory_settings?.long_term ?? true,
+                sessionBased: c.memory_settings?.session_based ?? false
+            },
+            toneLabel: c.tone_label
         }));
 
-        return [...DEFAULT_COACHES, ...formattedCustomCoaches];
+        return id ? formattedCustomCoaches : [...DEFAULT_COACHES, ...formattedCustomCoaches];
     } catch (e) {
         console.error('Failed to load coaches', e);
         return DEFAULT_COACHES;
@@ -82,7 +107,14 @@ export async function saveCustomCoach(coach: Coach): Promise<void> {
                 subtitle: coach.subtitle,
                 tone: coach.tone,
                 emoji: coach.emoji,
-                system_prompt: coach.systemPrompt
+                system_prompt: coach.systemPrompt,
+                voice_id: coach.voiceId,
+                memory_settings: {
+                    long_term: coach.memorySettings?.longTerm,
+                    session_based: coach.memorySettings?.sessionBased
+                },
+                tone_label: coach.toneLabel,
+                color_accent: coach.color
             });
 
         if (error) throw error;

@@ -1,29 +1,32 @@
-import { useState, useRef, useEffect } from 'react'
-import {
-  Text,
-  View,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ActivityIndicator,
-} from 'react-native'
-import { useLocalSearchParams, useRouter } from 'expo-router'
-import { supabase } from '@/lib/supabase'
+import { ChatHeader } from '@/components/chat/ChatHeader'
+import { ChatInput } from '@/components/chat/ChatInput'
+import { SuggestionChips } from '@/components/chat/SuggestionChips'
+import { ThinkingIndicator } from '@/components/ui/ThinkingIndicator'
+import { CallModal } from '@/components/voice/CallModal'
 import { useAuth } from '@/ctx/AuthContext'
 import { useSubscription } from '@/ctx/SubscriptionContext'
-import { IS_EXPO_GO } from '@/lib/env'
-import * as Speech from 'expo-speech'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { getCoaches, Coach, DEFAULT_COACHES } from '@/lib/coaches'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { ThinkingIndicator } from '@/components/ui/ThinkingIndicator'
-import { ChatHeader } from '@/components/chat/ChatHeader'
-import { SuggestionChips } from '@/components/chat/SuggestionChips'
-import { ChatInput } from '@/components/chat/ChatInput'
-import { StatusBar } from 'expo-status-bar'
-import { CallModal } from '@/components/voice/CallModal'
 import { useVoiceCall } from '@/hooks/voice/useVoiceCall'
+import { Coach, DEFAULT_COACHES, getCoaches } from '@/lib/coaches'
+import { IS_EXPO_GO } from '@/lib/env'
+import { supabase } from '@/lib/supabase'
+import { Feather } from '@expo/vector-icons'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useLocalSearchParams, useRouter } from 'expo-router'
+import * as Speech from 'expo-speech'
+import { StatusBar } from 'expo-status-bar'
+import { useEffect, useRef, useState } from 'react'
+import {
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native'
+import Animated, { FadeInDown } from 'react-native-reanimated'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 type Message = {
   role: 'user' | 'assistant'
@@ -38,7 +41,9 @@ export default function CoachChatScreen() {
   const scrollViewRef = useRef<ScrollView>(null)
 
   const [currentCoach, setCurrentCoach] = useState<Coach | null>(null)
+  const [conversation, setConversation] = useState<any>(null)
   const [messages, setMessages] = useState<Message[]>([])
+  const [conversationId, setConversationId] = useState<string | null>(null)
   const [inputText, setInputText] = useState('')
   const [loading, setLoading] = useState(false)
   const [voiceEnabled, setVoiceEnabled] = useState(false)
@@ -56,28 +61,79 @@ export default function CoachChatScreen() {
 
   useEffect(() => {
     async function init() {
-      const coaches = await getCoaches()
-      const found = coaches.find(c => c.id === coachId)
-      if (found) {
-        setCurrentCoach(found)
+      if (!user) return;
 
-        // Load history
-        const json = await AsyncStorage.getItem(`chat_history_${coachId}`)
-        if (json) {
-          setMessages(JSON.parse(json))
+      try {
+        // Parallelize initial lookups
+        const [coaches, convsResult, voiceEnabledRaw] = await Promise.all([
+          getCoaches(coachId),
+          supabase
+            .from('conversations')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('coach_id', coachId)
+            .order('last_message_at', { ascending: false })
+            .limit(1),
+          AsyncStorage.getItem('voice_enabled')
+        ]);
+
+        const found = coaches.find(c => c.id === coachId);
+        if (!found) return;
+
+        setCurrentCoach(found);
+        setVoiceEnabled(voiceEnabledRaw === 'true');
+
+        // 1. Fetch or Create Conversation
+        let activeConversationId: string | null = null;
+        let activeConv: any = null;
+
+        if (convsResult.data && convsResult.data.length > 0 && found.memorySettings?.longTerm) {
+          activeConversationId = convsResult.data[0].id;
+          activeConv = convsResult.data[0];
+          setConversation(activeConv);
         } else {
-          // New Session: Add greeting
-          const greeting = {
-            role: 'assistant',
-            content: `Welcome, ${user?.user_metadata?.full_name?.split(' ')[0] || 'Joshua'}. I'm here to listen. What's currently on your mind?`
-          } as Message
-          setMessages([greeting])
-          await AsyncStorage.setItem(`chat_history_${coachId}`, JSON.stringify([greeting]))
-        }
-      }
+          console.log('Creating new conversation for:', coachId);
+          const { data: newConv, error: createError } = await supabase
+            .from('conversations')
+            .insert({ user_id: user.id, coach_id: coachId })
+            .select()
+            .single();
 
-      const v = await AsyncStorage.getItem('voice_enabled')
-      setVoiceEnabled(v === 'true')
+          if (createError) {
+            console.error('Failed to create conversation:', createError);
+          }
+          activeConversationId = newConv?.id;
+          setConversation(newConv);
+        }
+
+        setConversationId(activeConversationId);
+
+        // 2. Load Messages from Supabase
+        if (activeConversationId) {
+          const { data: history } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('conversation_id', activeConversationId)
+            .order('created_at', { ascending: true });
+
+          if (history && history.length > 0) {
+            setMessages(history.map(m => ({ role: m.role, content: m.content })));
+          } else {
+            // New Session: Add greeting
+            const greetingText = `Welcome, ${userName}. I'm here to listen. What's currently on your mind?`;
+            const greeting = { role: 'assistant', content: greetingText } as Message;
+            setMessages([greeting]);
+
+            await supabase.from('messages').insert({
+              conversation_id: activeConversationId,
+              role: 'assistant',
+              content: greetingText
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Chat init error:', err);
+      }
     }
 
     init()
@@ -93,10 +149,10 @@ export default function CoachChatScreen() {
   }
 
   const handleLogout = () => {
-    Alert.alert('End Session', 'Save progress and exit?', [
+    Alert.alert('Save & Exit', 'Your progress is automatically saved to the cloud.', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'End Session',
+        text: 'Finish',
         style: 'default',
         onPress: () => router.back()
       }
@@ -124,7 +180,7 @@ export default function CoachChatScreen() {
   }
 
   const handleVoiceRecording = (uri: string) => {
-    if (IS_EXPO_GO) return; // Should be handled by UI disabling
+    if (IS_EXPO_GO) return;
     if (!isPro) {
       router.push('/paywall')
       return
@@ -134,41 +190,98 @@ export default function CoachChatScreen() {
   }
 
   async function sendMessage(text: string = inputText) {
-    if (!text.trim()) return
-    if (!currentCoach) return
+    const finalContent = text || inputText;
+    if (!finalContent.trim() || !currentCoach) return
 
-    const userMsg: Message = { role: 'user', content: text }
-    const newMessages = [...messages, userMsg]
-    setMessages(newMessages)
-    await AsyncStorage.setItem(`chat_history_${coachId}`, JSON.stringify(newMessages))
+    if (!user) {
+      Alert.alert('Auth Error', 'You must be logged in to send messages.');
+      return;
+    }
 
+    // Ensure we have a conversationId or try to get one
+    let activeConvId = conversationId;
+    if (!activeConvId) {
+      console.log('No active session. Attempting to create one for:', coachId);
+      const { data: newConv, error: createError } = await supabase
+        .from('conversations')
+        .insert({ user_id: user.id, coach_id: coachId })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Session creation failed:', createError);
+        Alert.alert(
+          'Session Error',
+          `Could not establish a connection. ${createError.message}\n\nHint: Check if the 'conversations' table exists in Supabase.`
+        );
+        return;
+      }
+
+      if (newConv) {
+        activeConvId = newConv.id;
+        setConversationId(activeConvId);
+        setConversation(newConv);
+      }
+    }
+
+    if (!activeConvId) {
+      Alert.alert('Session Error', 'Could not establish a connection. Please try again.');
+      return;
+    }
+
+    const userMsg: Message = { role: 'user', content: finalContent }
+    setMessages(prev => [...prev, userMsg])
     setInputText('')
     setLoading(true)
+    Keyboard.dismiss()
 
     try {
+      // 1. Persist User Message
+      const { error: msgError } = await supabase.from('messages').insert({
+        conversation_id: activeConvId,
+        role: 'user',
+        content: finalContent
+      })
+
+      if (msgError) {
+        console.error('Failed to persist message:', msgError);
+        throw msgError;
+      }
+
+      // 2. Call Edge Function
       const { data, error } = await supabase.functions.invoke('coach', {
         body: {
-          messages: newMessages,
+          messages: messages.map(m => ({ role: m.role, content: m.content })),
+          userMessage: finalContent,
           coachId: currentCoach.id,
           systemPrompt: currentCoach.systemPrompt
         },
       })
 
-      if (error || data?.error) {
-        throw new Error(error?.message || data?.error || 'Failed to get response')
+      if (error || !data || data.error) {
+        console.error('Edge Function Error:', error || data?.error)
+        throw new Error(error?.message || data?.error || 'Intelligence service unavailable')
       }
 
-      const aiMsg: Message = { role: 'assistant', content: data.reply }
-      const finalMessages = [...newMessages, aiMsg]
-      setMessages(finalMessages)
-      await AsyncStorage.setItem(`chat_history_${coachId}`, JSON.stringify(finalMessages))
+      // 3. Persist & Show AI Message
+      const aiReply = data.reply
+      await supabase.from('messages').insert({
+        conversation_id: activeConvId,
+        role: 'assistant',
+        content: aiReply
+      })
 
-      speak(data.reply)
+      // Update Conversation Timestamp
+      await supabase.from('conversations')
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('id', activeConvId)
+
+      setMessages(prev => [...prev, { role: 'assistant', content: aiReply }])
+      speak(aiReply)
     } catch (err: any) {
-      const fallbackReply = "I'm listening. Tell me more."
-      const fallbackMessages = [...newMessages, { role: 'assistant', content: fallbackReply } as Message]
-      setMessages(fallbackMessages)
-      await AsyncStorage.setItem(`chat_history_${coachId}`, JSON.stringify(fallbackMessages))
+      console.error('Send message error:', err);
+      const fallbackReply = "I'm listening closely. Can you tell me more about that?"
+      setMessages(prev => [...prev, { role: 'assistant', content: fallbackReply } as Message])
     } finally {
       setLoading(false)
     }
@@ -183,7 +296,7 @@ export default function CoachChatScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-zinc-950">
+    <SafeAreaView style={{ flex: 1 }} className="bg-white dark:bg-zinc-950">
       <StatusBar style="dark" />
       <KeyboardAvoidingView
         className="flex-1"
@@ -196,48 +309,65 @@ export default function CoachChatScreen() {
           <ScrollView
             ref={scrollViewRef}
             className="flex-1"
-            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140 }}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 32, paddingBottom: 160 }}
             onContentSizeChange={() =>
               scrollViewRef.current?.scrollToEnd({ animated: true })
             }
             showsVerticalScrollIndicator={false}
           >
+            {conversation?.summary && (
+              <Animated.View
+                entering={FadeInDown.duration(800)}
+                className="mb-12 p-8 bg-zinc-50/80 dark:bg-zinc-900/50 rounded-[40px] border border-zinc-100 dark:border-zinc-800"
+              >
+                <View className="flex-row items-center mb-4">
+                  <View className="bg-brand-500/10 p-2 rounded-full">
+                    <Feather name="anchor" size={14} color="#6366f1" />
+                  </View>
+                  <Text className="text-[10px] font-bold text-brand-500 uppercase tracking-[0.2em] ml-3">Context Anchor</Text>
+                </View>
+                <Text className="text-[17px] text-zinc-600 dark:text-zinc-400 leading-[26px] font-medium italic">
+                  "{conversation.summary}"
+                </Text>
+              </Animated.View>
+            )}
+
             {messages.map((msg, i) => (
-              <View
+              <Animated.View
                 key={i}
-                className={`mb-8 max-w-[90%] ${msg.role === 'user' ? 'self-end' : 'self-start'}`}
+                entering={FadeInDown.springify().damping(18).stiffness(80).delay(i * 30)}
+                className={`mb-8 max-w-[88%] ${msg.role === 'user' ? 'self-end' : 'self-start'}`}
               >
                 <View
-                  className={`px-6 py-4 rounded-[28px] ${msg.role === 'user'
-                    ? 'bg-zinc-900 border border-zinc-900 dark:bg-zinc-100 rounded-tr-none shadow-lg shadow-zinc-200'
-                    : 'bg-white border border-zinc-100 dark:bg-zinc-900 dark:border-zinc-800 rounded-tl-none shadow-sm'
+                  className={`px-7 py-5 rounded-[32px] ${msg.role === 'user'
+                    ? 'bg-zinc-900 dark:bg-zinc-50 rounded-tr-none shadow-xl shadow-zinc-200/50 dark:shadow-black/20'
+                    : 'bg-white dark:bg-zinc-900 border border-zinc-50 dark:border-zinc-800 rounded-tl-none shadow-sm'
                     }`}
                 >
-                  <Text className={`text-[17px] leading-[26px] font-normal tracking-[-0.01em] ${msg.role === 'user'
-                    ? 'text-white dark:text-zinc-900'
+                  <Text className={`text-[17px] leading-[26px] font-medium ${msg.role === 'user'
+                    ? 'text-white dark:text-zinc-950'
                     : 'text-zinc-800 dark:text-zinc-100'
                     }`}>
                     {msg.content}
                   </Text>
                 </View>
-                {/* Semantic label for accessibility/clarity */}
-                <Text className={`text-[10px] mt-2 px-2 font-bold text-zinc-300 uppercase tracking-[0.1em] ${msg.role === 'user' ? 'text-right' : 'text-left'
+                <Text className={`text-[10px] mt-3 px-4 font-bold text-zinc-400 dark:text-zinc-600 uppercase tracking-widest ${msg.role === 'user' ? 'text-right' : 'text-left'
                   }`}>
                   {msg.role === 'user' ? 'You' : currentCoach.name}
                 </Text>
-              </View>
+              </Animated.View>
             ))}
 
             {loading && (
-              <View className="self-start mb-8 ml-2">
+              <View className="self-start mb-12 ml-2">
                 <ThinkingIndicator />
               </View>
             )}
           </ScrollView>
 
-          {/* Suggestion Chips Overlay (only when minimal history) */}
+          {/* Suggestion Chips Overlay */}
           {messages.length <= 1 && !loading && (
-            <View className="absolute bottom-32 w-full">
+            <View className="absolute bottom-36 w-full">
               <SuggestionChips onSelect={sendMessage} />
             </View>
           )}
@@ -249,7 +379,6 @@ export default function CoachChatScreen() {
             onVoiceRecording={handleVoiceRecording}
           />
         </View>
-
       </KeyboardAvoidingView>
 
       {currentCoach ? (

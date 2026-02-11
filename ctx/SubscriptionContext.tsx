@@ -1,3 +1,4 @@
+import { IS_EXPO_GO, expoGoWarning } from '@/lib/env';
 import React, {
   createContext,
   useContext,
@@ -7,13 +8,12 @@ import React, {
 } from 'react';
 import { Platform } from 'react-native';
 import { useAuth } from './AuthContext';
-import { IS_EXPO_GO, expoGoWarning } from '@/lib/env';
 
 // types only (no static native linking)
 import type {
+  CustomerInfo,
   PurchasesOffering,
   PurchasesPackage,
-  CustomerInfo,
 } from 'react-native-purchases';
 
 type SubscriptionContextType = {
@@ -100,49 +100,68 @@ export function SubscriptionProvider({
     let cancelled = false;
 
     const init = async () => {
+      console.log('SubscriptionProvider initializing (IS_EXPO_GO:', IS_EXPO_GO, ')');
       if (IS_EXPO_GO) {
         expoGoWarning('RevenueCat Subscriptions');
         setIsLoading(false);
         return;
       }
 
-      const Purchases = getPurchases();
-      if (!Purchases) {
-        setIsLoading(false);
-        return;
-      }
-
       try {
+        const Purchases = getPurchases();
+        if (!Purchases) {
+          setIsLoading(false);
+          return;
+        }
+
         const { LOG_LEVEL } = require('react-native-purchases');
         Purchases.setLogLevel(LOG_LEVEL.DEBUG);
 
         // 🔑 Always configure anonymously
         await Purchases.configure({
-          apiKey:
-            Platform.OS === 'android'
-              ? API_KEYS.android
-              : API_KEYS.ios,
+          apiKey: Platform.OS === 'android' ? API_KEYS.android : API_KEYS.ios,
         });
 
-        // 👤 Log in only if user exists
-        if (user?.id) {
-          await Purchases.logIn(user.id);
-        } else {
-          await Purchases.logOut();
+        // 👤 Sync with Auth User (Defensive)
+        try {
+          if (user?.id) {
+            const appUserID = await Purchases.getAppUserID();
+            if (appUserID !== user.id) {
+              await Purchases.logIn(user.id);
+            }
+          } else {
+            const isAnonymous = await Purchases.isAnonymous();
+            if (!isAnonymous) {
+              await Purchases.logOut();
+            }
+          }
+        } catch (authError) {
+          console.error('RevenueCat user sync error', authError);
         }
 
-        // 🔄 Sync state
-        await fetchCustomerInfo();
-        await fetchOfferings();
+        // 🔄 Sync state (Non-blocking)
+        console.log('Fetching CustomerInfo and Offerings...');
+        const syncTasks = [
+          fetchCustomerInfo().catch(e => console.error('fetchCustomerInfo error', e)),
+          fetchOfferings().catch(e => console.error('fetchOfferings error', e))
+        ];
+
+        // Wait for them, but don't let them hang the entire init if they take too long
+        // (though we're just letting them run and moving to finally)
+        await Promise.race([
+          Promise.all(syncTasks),
+          new Promise(res => setTimeout(res, 3000)) // 3s safety timeout
+        ]);
+
+        console.log('RevenueCat sync step completed');
 
         // 🔔 Listener (with cleanup)
         listenerCleanup.current?.();
-        listenerCleanup.current =
-          Purchases.addCustomerInfoUpdateListener(
-            (info: CustomerInfo) => {
-              if (!cancelled) syncProStatus(info);
-            }
-          );
+        listenerCleanup.current = Purchases.addCustomerInfoUpdateListener(
+          (info: CustomerInfo) => {
+            if (!cancelled) syncProStatus(info);
+          }
+        );
       } catch (e) {
         console.error('RevenueCat init error', e);
       } finally {

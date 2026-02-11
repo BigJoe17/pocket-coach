@@ -1,9 +1,9 @@
 
-import { useEffect } from 'react'
-import { Pressable, View } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { useVoiceInput } from '@/hooks/voice/useVoiceInput'
 import { IS_EXPO_GO } from '@/lib/env'
+import { Ionicons } from '@expo/vector-icons'
+import { useEffect } from 'react'
+import { Pressable, View } from 'react-native'
 
 type Props = {
   onRecordingComplete?: (uri: string) => void
@@ -32,7 +32,7 @@ export function VoiceInputButton({ onRecordingComplete, disabled }: Props) {
       onPressIn={start}
       onPressOut={stop}
       disabled={isDisabled}
-      className={`h-11 w-11 rounded-full items-center justify-center transition-all ${isRecording ? 'bg-teal-600' : 'bg-slate-50'
+      className={`h-11 w-11 rounded-full items-center justify-center transition-all ${isRecording ? 'bg-zinc-900 dark:bg-zinc-50' : 'bg-zinc-50 dark:bg-zinc-800 active:bg-zinc-100'
         } ${isDisabled ? 'opacity-50' : ''}`}
     >
       {isRecording ? (

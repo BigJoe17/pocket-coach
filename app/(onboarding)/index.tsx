@@ -1,86 +1,62 @@
-
-import { useState } from 'react';
-import { Pressable, Text, View, Alert, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/ctx/AuthContext';
+import { useState } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
-export default function Onboarding() {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [preferences, setPreferences] = useState({
-    style: 'direct',
-    window: 'morning',
-    accountability: 'gentle',
-  });
+export default function OnboardingName() {
+  const [name, setName] = useState('');
 
-  async function finishSetup() {
-    if (!user) {
-      Alert.alert('Error', 'No user found');
-      return;
+  const next = () => {
+    if (name.trim()) {
+      router.push('/(onboarding)/goal');
     }
-
-    setLoading(true);
-    const { error } = await supabase
-      .from('profiles')
-      .update({ preferences })
-      .eq('id', user.id); // Check Update Policy if this fails
-
-    // Allow insert if profile doesn't exist? Trigger handles creation.
-    // We assume policy allows update.
-
-    if (error) {
-      console.error(error);
-      Alert.alert('Error', 'Failed to save preferences');
-      setLoading(false);
-    } else {
-      setLoading(false);
-      router.replace('/(core)/home');
-    }
-  }
+  };
 
   return (
-    <View className="flex-1 bg-[#F7F3EE]">
-      <View className="absolute -top-24 right-10 h-48 w-48 rounded-full bg-rose-200/80" />
-      <View className="absolute -bottom-28 -left-16 h-64 w-64 rounded-full bg-amber-200/70" />
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      className="flex-1"
+    >
+      <View className="flex-1 px-8 pt-12">
+        <Animated.View entering={FadeInDown.duration(600).delay(200)}>
+          <Text className="text-brand-500 font-semibold tracking-widest text-xs uppercase mb-2">
+            Step 1 / 5
+          </Text>
+          <Text className="text-4xl font-semibold text-slate-900 dark:text-slate-50 leading-tight">
+            What should I{"\n"}call you?
+          </Text>
+          <Text className="text-slate-500 mt-4 text-base leading-relaxed">
+            I'll use this to personalize our coaching sessions and build a profile just for you.
+          </Text>
+        </Animated.View>
 
-      <View className="flex-1 px-6 pt-14">
-        <Text className="text-xs font-semibold uppercase tracking-[3px] text-rose-700">
-          Onboarding
-        </Text>
-        <Text className="mt-4 text-4xl font-semibold text-slate-900">Shape your coach</Text>
-        <Text className="mt-3 text-base text-slate-600">
-          Quick preferences to tune tone, energy, and focus. Takes less than a minute.
-        </Text>
-
-        <View className="mt-8">
-          {/* Static for now, but state is ready */}
-          <Pressable onPress={() => setPreferences({ ...preferences, style: 'direct' })} className={`rounded-3xl bg-white/90 p-5 shadow-lg shadow-slate-900/10 ${preferences.style === 'direct' ? 'border-2 border-rose-400' : ''}`}>
-            <Text className="text-sm font-semibold text-slate-900">Coaching style</Text>
-            <Text className="mt-2 text-sm text-slate-600">Direct, encouraging, and practical.</Text>
-          </Pressable>
-          <View className="mt-3 rounded-3xl bg-white/90 p-5 shadow-lg shadow-slate-900/10">
-            <Text className="text-sm font-semibold text-slate-900">Focus window</Text>
-            <Text className="mt-2 text-sm text-slate-600">Morning deep work, 9:00 - 11:00.</Text>
-          </View>
-          <View className="mt-3 rounded-3xl bg-white/90 p-5 shadow-lg shadow-slate-900/10">
-            <Text className="text-sm font-semibold text-slate-900">Accountability</Text>
-            <Text className="mt-2 text-sm text-slate-600">Gentle check-ins with streaks.</Text>
-          </View>
-        </View>
-
-        <Pressable
-          className="mt-8 rounded-full bg-slate-900 px-6 py-4 flex-row justify-center"
-          onPress={finishSetup}
-          disabled={loading}
+        <Animated.View
+          entering={FadeInDown.duration(600).delay(400)}
+          className="mt-12"
         >
-          {loading ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text className="text-center text-base font-semibold text-white">Finish setup</Text>
-          )}
-        </Pressable>
+          <TextInput
+            autoFocus
+            placeholder="Your name"
+            placeholderTextColor="#94a3b8"
+            className="text-2xl font-medium text-slate-900 dark:text-slate-50 border-b-2 border-slate-200 dark:border-zinc-800 pb-2"
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="words"
+          />
+        </Animated.View>
+
+        <View className="mt-auto mb-10">
+          <Pressable
+            onPress={next}
+            disabled={!name.trim()}
+            className={`rounded-full py-5 items-center justify-center ${name.trim() ? 'bg-brand-500' : 'bg-slate-200 dark:bg-zinc-800'}`}
+          >
+            <Text className={`text-lg font-semibold ${name.trim() ? 'text-white' : 'text-slate-400'}`}>
+              Continue
+            </Text>
+          </Pressable>
+        </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
