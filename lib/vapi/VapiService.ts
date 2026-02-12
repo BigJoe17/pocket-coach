@@ -1,4 +1,5 @@
 
+import { POCKET_COACH_SYSTEM_PROMPT } from '@/lib/ai/systemPrompt';
 import { IS_EXPO_GO, expoGoWarning } from '@/lib/env';
 
 type VapiEvent =
@@ -66,12 +67,18 @@ export class VapiService {
 
     this.active = true
 
-    if (params.assistantId) {
-      return this.vapi.start(params.assistantId)
-    }
+    // Inject structured output prompt into assistant configuration
+    const assistant = params.assistantId ? undefined : {
+      ...params.assistant,
+      model: {
+        ...params.assistant?.model,
+        systemPrompt: POCKET_COACH_SYSTEM_PROMPT,
+      }
+    };
 
     return this.vapi.start({
-      assistant: params.assistant,
+      assistant,
+      assistantId: params.assistantId,
       metadata: params.metadata,
     } as any)
   }

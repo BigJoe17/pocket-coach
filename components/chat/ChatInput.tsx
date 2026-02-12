@@ -2,7 +2,7 @@ import { useVoicePreferences } from '@/hooks/voice/useVoicePreferences';
 import Feather from '@expo/vector-icons/Feather';
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
-import { Platform, Pressable, TextInput, View } from 'react-native';
+import { Platform, Pressable, TextInput, useColorScheme, View } from 'react-native';
 import { VoiceMode } from './VoiceMode';
 
 type PROPS = {
@@ -14,6 +14,7 @@ type PROPS = {
 
 export function ChatInput({ onSend, input, setInput, onVoiceRecording }: PROPS) {
     const { voiceInputEnabled } = useVoicePreferences();
+    const colorScheme = useColorScheme();
     const [isVoiceMode, setIsVoiceMode] = useState(false);
 
     const handleSend = () => {
@@ -27,28 +28,75 @@ export function ChatInput({ onSend, input, setInput, onVoiceRecording }: PROPS) 
         setIsVoiceMode(!isVoiceMode);
     };
 
-    return (
-        <View className="absolute bottom-10 left-6 right-6 shadow-2xl shadow-slate-200/50 dark:shadow-black/40">
-            <View className={`flex-row items-end bg-white/95 dark:bg-zinc-900/95 border border-zinc-100 dark:border-zinc-800 rounded-[36px] ${isVoiceMode ? 'px-1 py-1' : 'px-2 py-2'}`}>
+    const isDark = colorScheme === 'dark';
 
+    return (
+        <View
+            style={{
+                position: 'absolute',
+                bottom: 40,
+                left: 24,
+                right: 24,
+                ...Platform.select({
+                    ios: {
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 20 },
+                        shadowOpacity: 0.15,
+                        shadowRadius: 30,
+                    },
+                    android: {
+                        elevation: 10,
+                    }
+                })
+            }}
+        >
+            <View
+                style={{
+                    flexDirection: 'row',
+                    alignItems: 'flex-end',
+                    backgroundColor: isDark ? 'rgba(24, 24, 27, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    borderWidth: 1,
+                    borderColor: isDark ? '#27272a' : '#f4f4f5',
+                    borderRadius: 36,
+                    paddingHorizontal: isVoiceMode ? 4 : 8,
+                    paddingVertical: isVoiceMode ? 4 : 8,
+                }}
+            >
                 {isVoiceMode ? (
                     <VoiceMode
-                        state="listening" // placeholder state for now
+                        state="listening"
                         onClose={() => setIsVoiceMode(false)}
                     />
                 ) : (
                     <>
-                        <View className="h-12 w-12 items-center justify-center">
+                        <View style={{ height: 48, width: 48, alignItems: 'center', justifyContent: 'center' }}>
                             <Pressable
                                 onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-                                className="h-10 w-10 items-center justify-center rounded-full bg-zinc-50 dark:bg-zinc-800 active:bg-zinc-100"
+                                style={({ pressed }) => ({
+                                    height: 40,
+                                    width: 40,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderRadius: 20,
+                                    backgroundColor: isDark ? '#27272a' : '#fafafa',
+                                    opacity: pressed ? 0.7 : 1
+                                })}
                             >
                                 <Feather name="plus" size={20} color="#64748b" />
                             </Pressable>
                         </View>
 
                         <TextInput
-                            className="flex-1 text-[17px] text-zinc-900 dark:text-zinc-50 max-h-32 min-h-[48px] px-3 pt-3 pb-3"
+                            style={{
+                                flex: 1,
+                                fontSize: 17,
+                                color: isDark ? '#fafafa' : '#18181b',
+                                maxHeight: 128,
+                                minHeight: 48,
+                                paddingHorizontal: 12,
+                                paddingTop: 12,
+                                paddingBottom: 12,
+                            }}
                             placeholder="Deep work thoughts..."
                             placeholderTextColor="#94a3b8"
                             value={input}
@@ -58,18 +106,45 @@ export function ChatInput({ onSend, input, setInput, onVoiceRecording }: PROPS) 
                             blurOnSubmit={false}
                         />
 
-                        <View className="flex-row items-center gap-1 pr-1 pb-1">
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 4, paddingBottom: 4 }}>
                             {input.trim() ? (
                                 <Pressable
                                     onPress={handleSend}
-                                    className="h-11 w-11 rounded-full items-center justify-center bg-zinc-900 dark:bg-zinc-50 active:bg-zinc-800 shadow-lg shadow-zinc-200/50"
+                                    style={({ pressed }) => ({
+                                        height: 44,
+                                        width: 44,
+                                        borderRadius: 22,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        backgroundColor: isDark ? '#fafafa' : '#18181b',
+                                        opacity: pressed ? 0.8 : 1,
+                                        ...Platform.select({
+                                            ios: {
+                                                shadowColor: '#000',
+                                                shadowOffset: { width: 0, height: 4 },
+                                                shadowOpacity: 0.2,
+                                                shadowRadius: 8,
+                                            },
+                                            android: {
+                                                elevation: 4,
+                                            }
+                                        })
+                                    })}
                                 >
-                                    <Feather name="arrow-up" size={22} color={Platform.OS === 'ios' ? 'white' : (input.trim() ? 'white' : '#18181b')} />
+                                    <Feather name="arrow-up" size={22} color={isDark ? '#18181b' : 'white'} />
                                 </Pressable>
                             ) : (
                                 <Pressable
                                     onPress={toggleVoiceMode}
-                                    className="h-11 w-11 rounded-full items-center justify-center bg-zinc-50 dark:bg-zinc-800 active:bg-zinc-100"
+                                    style={({ pressed }) => ({
+                                        height: 44,
+                                        width: 44,
+                                        borderRadius: 22,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        backgroundColor: isDark ? '#27272a' : '#fafafa',
+                                        opacity: pressed ? 0.7 : 1
+                                    })}
                                 >
                                     <Feather name="mic" size={20} color="#94a3b8" />
                                 </Pressable>
@@ -81,4 +156,3 @@ export function ChatInput({ onSend, input, setInput, onVoiceRecording }: PROPS) 
         </View>
     );
 }
-

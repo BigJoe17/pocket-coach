@@ -3,7 +3,7 @@ import { Coach } from '@/lib/coaches';
 import Feather from '@expo/vector-icons/Feather';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, useColorScheme, View } from 'react-native';
 
 type Props = {
     coach: Coach | null;
@@ -14,11 +14,24 @@ type Props = {
 export function ChatHeader({ coach, logout, onCallPress }: Props) {
     const router = useRouter();
     const { callEnabled } = useVoicePreferences();
+    const colorScheme = useColorScheme();
+    const isDark = colorScheme === 'dark';
 
     if (!coach) return null;
 
     return (
-        <View className="px-6 py-6 flex-row justify-between items-center bg-white dark:bg-zinc-950 border-b border-zinc-50 dark:border-zinc-900">
+        <View
+            style={{
+                paddingHorizontal: 24,
+                paddingVertical: 24,
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                backgroundColor: isDark ? '#09090b' : '#ffffff',
+                borderBottomWidth: 1,
+                borderBottomColor: isDark ? '#18181b' : '#f4f4f5',
+            }}
+        >
             <Pressable
                 onPress={() => router.back()}
                 className="h-12 w-12 items-center justify-center rounded-full bg-zinc-50 dark:bg-zinc-900 active:bg-zinc-100"
@@ -26,8 +39,8 @@ export function ChatHeader({ coach, logout, onCallPress }: Props) {
                 <Feather name="chevron-left" size={22} color="#64748b" />
             </Pressable>
 
-            <View className="items-center">
-                <View className="flex-row items-center gap-3 mb-1">
+            <View style={{ alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 }}>
                     <View className="bg-zinc-50 dark:bg-zinc-900 h-10 w-10 rounded-full items-center justify-center border border-zinc-100 dark:border-zinc-800">
                         <Text className="text-xl">{coach.emoji}</Text>
                     </View>
@@ -35,7 +48,7 @@ export function ChatHeader({ coach, logout, onCallPress }: Props) {
                         {coach.name}
                     </Text>
                 </View>
-                <View className="flex-row items-center gap-1.5 opacity-60">
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, opacity: 0.6 }}>
                     <View className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                     <Text className="text-[9px] font-bold text-zinc-500 uppercase tracking-[0.2em]">
                         Cognitive Companion
@@ -43,7 +56,7 @@ export function ChatHeader({ coach, logout, onCallPress }: Props) {
                 </View>
             </View>
 
-            <View className="flex-row items-center gap-3">
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 {onCallPress && callEnabled ? (
                     <Pressable
                         onPress={() => {

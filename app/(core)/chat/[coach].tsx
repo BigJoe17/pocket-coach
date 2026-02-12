@@ -23,7 +23,8 @@ import {
   Platform,
   ScrollView,
   Text,
-  View,
+  useColorScheme,
+  View
 } from 'react-native'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -34,6 +35,8 @@ type Message = {
 }
 
 export default function CoachChatScreen() {
+  const colorScheme = useColorScheme()
+  const isDark = colorScheme === 'dark'
   const { coach: coachId } = useLocalSearchParams<{ coach: string }>()
   const router = useRouter()
   const { user } = useAuth()
@@ -296,10 +299,10 @@ export default function CoachChatScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1 }} className="bg-white dark:bg-zinc-950">
+    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#09090b' : '#ffffff' }}>
       <StatusBar style="dark" />
       <KeyboardAvoidingView
-        className="flex-1"
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
@@ -318,7 +321,14 @@ export default function CoachChatScreen() {
             {conversation?.summary && (
               <Animated.View
                 entering={FadeInDown.duration(800)}
-                className="mb-12 p-8 bg-zinc-50/80 dark:bg-zinc-900/50 rounded-[40px] border border-zinc-100 dark:border-zinc-800"
+                style={{
+                  marginBottom: 48,
+                  padding: 32,
+                  backgroundColor: isDark ? 'rgba(39, 39, 42, 0.5)' : 'rgba(248, 250, 252, 0.8)',
+                  borderRadius: 40,
+                  borderWidth: 1,
+                  borderColor: isDark ? '#27272a' : '#f1f5f9',
+                }}
               >
                 <View className="flex-row items-center mb-4">
                   <View className="bg-brand-500/10 p-2 rounded-full">
@@ -339,10 +349,30 @@ export default function CoachChatScreen() {
                 className={`mb-8 max-w-[88%] ${msg.role === 'user' ? 'self-end' : 'self-start'}`}
               >
                 <View
-                  className={`px-7 py-5 rounded-[32px] ${msg.role === 'user'
-                    ? 'bg-zinc-900 dark:bg-zinc-50 rounded-tr-none shadow-xl shadow-zinc-200/50 dark:shadow-black/20'
-                    : 'bg-white dark:bg-zinc-900 border border-zinc-50 dark:border-zinc-800 rounded-tl-none shadow-sm'
-                    }`}
+                  style={{
+                    paddingHorizontal: 28,
+                    paddingVertical: 20,
+                    borderRadius: 32,
+                    borderTopLeftRadius: msg.role === 'assistant' ? 0 : 32,
+                    borderTopRightRadius: msg.role === 'user' ? 0 : 32,
+                    backgroundColor: msg.role === 'user'
+                      ? (isDark ? '#f8fafc' : '#18181b')
+                      : (isDark ? '#18181b' : '#ffffff'),
+                    borderWidth: msg.role === 'assistant' ? 1 : 0,
+                    borderColor: isDark ? '#27272a' : '#f9fafb',
+                    ...(msg.role === 'user' ? {
+                      elevation: 4,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 8
+                    } : {
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 2,
+                    })
+                  }}
                 >
                   <Text className={`text-[17px] leading-[26px] font-medium ${msg.role === 'user'
                     ? 'text-white dark:text-zinc-950'

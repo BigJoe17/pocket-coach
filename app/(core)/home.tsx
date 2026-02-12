@@ -7,12 +7,13 @@ import Feather from '@expo/vector-icons/Feather';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, useColorScheme, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const colorScheme = useColorScheme();
   const { user } = useAuth();
   const { isPro } = useSubscription();
   const [profile, setProfile] = useState<any>(null);
@@ -89,7 +90,18 @@ export default function HomeScreen() {
         <View className="px-6 mb-10">
           <Animated.View
             entering={FadeInDown.duration(800).delay(200)}
-            className="bg-white dark:bg-zinc-900 rounded-[32px] p-8 shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-slate-100 dark:border-zinc-800"
+            style={{
+              backgroundColor: colorScheme === 'dark' ? '#18181b' : '#ffffff',
+              padding: 32,
+              borderRadius: 32,
+              borderWidth: 1,
+              borderColor: colorScheme === 'dark' ? '#27272a' : '#f1f5f9',
+              shadowColor: '#64748b',
+              shadowOffset: { width: 0, height: 20 },
+              shadowOpacity: 0.1,
+              shadowRadius: 30,
+              elevation: 10,
+            }}
           >
             <Text className="text-brand-500 text-[10px] font-bold uppercase tracking-[0.2em] mb-4">
               Daily Intention

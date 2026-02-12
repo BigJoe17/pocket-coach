@@ -1,7 +1,7 @@
 import { CallState } from '@/lib/voice/types';
 import { Feather } from '@expo/vector-icons';
 import { useEffect } from 'react';
-import { Platform, Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, Text, useColorScheme, View } from 'react-native';
 import Animated, {
     Easing,
     FadeIn,
@@ -20,6 +20,9 @@ type Props = {
 };
 
 export function VoiceMode({ state, onClose, durationSeconds = 0 }: Props) {
+    const colorScheme = useColorScheme();
+    const isDark = colorScheme === 'dark';
+
     // Pulse animation for "Listening" state
     const pulseScale = useSharedValue(1);
     const pulseOpacity = useSharedValue(0.3);
@@ -82,7 +85,14 @@ export function VoiceMode({ state, onClose, durationSeconds = 0 }: Props) {
 
     const Bar = ({ value }: { value: any }) => {
         const style = useAnimatedStyle(() => ({ height: value.value }));
-        return <Animated.View className="w-1 bg-zinc-900 dark:bg-zinc-100 rounded-full mx-[2px]" style={style} />;
+        return (
+            <Animated.View
+                style={[
+                    { width: 4, borderRadius: 2, marginHorizontal: 2, backgroundColor: isDark ? '#f4f4f5' : '#18181b' },
+                    style
+                ]}
+            />
+        );
     };
 
     const getStatusText = () => {
@@ -100,38 +110,47 @@ export function VoiceMode({ state, onClose, durationSeconds = 0 }: Props) {
         <Animated.View
             entering={FadeIn}
             exiting={FadeOut}
-            className="flex-1 flex-row items-center justify-between pl-4 pr-1 py-1"
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 4, paddingVertical: 4 }}
         >
             {/* Status & Visuals */}
-            <View className="flex-row items-center flex-1">
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                 {/* Visual Indicator Container */}
-                <View className="h-10 w-10 items-center justify-center mr-3">
+                <View style={{ height: 40, width: 40, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
                     {state === 'listening' && (
                         <Animated.View
-                            className="absolute w-full h-full rounded-full bg-brand-500"
-                            style={pulseStyle}
+                            style={[
+                                { position: 'absolute', width: '100%', height: '100%', borderRadius: 20, backgroundColor: '#3b82f6' },
+                                pulseStyle
+                            ]}
                         />
                     )}
 
                     {state === 'speaking' ? (
-                        <View className="flex-row items-center h-8">
+                        <View style={{ flexDirection: 'row', alignItems: 'center', height: 32 }}>
                             <Bar value={bar1} />
                             <Bar value={bar2} />
                             <Bar value={bar3} />
                             <Bar value={bar4} />
                         </View>
                     ) : (
-                        <View className={`h-3 w-3 rounded-full ${state === 'error' ? 'bg-red-500' : 'bg-brand-500'}`} />
+                        <View
+                            style={{
+                                height: 12,
+                                width: 12,
+                                borderRadius: 6,
+                                backgroundColor: state === 'error' ? '#ef4444' : '#3b82f6'
+                            }}
+                        />
                     )}
                 </View>
 
                 {/* Text Info */}
                 <View>
-                    <Text className="text-zinc-900 dark:text-zinc-100 font-semibold text-base">
+                    <Text style={{ color: isDark ? '#f4f4f5' : '#18181b', fontWeight: '600', fontSize: 16 }}>
                         {getStatusText()}
                     </Text>
                     {durationSeconds > 0 && (
-                        <Text className="text-zinc-500 text-xs font-medium">
+                        <Text style={{ color: '#71717a', fontSize: 12, fontWeight: '500' }}>
                             {Math.floor(durationSeconds / 60)}:{(durationSeconds % 60).toString().padStart(2, '0')}
                         </Text>
                     )}
@@ -141,9 +160,17 @@ export function VoiceMode({ state, onClose, durationSeconds = 0 }: Props) {
             {/* Close / Switch to Text */}
             <Pressable
                 onPress={onClose}
-                className="h-11 w-11 rounded-full items-center justify-center bg-zinc-100 dark:bg-zinc-800"
+                style={({ pressed }) => ({
+                    height: 44,
+                    width: 44,
+                    borderRadius: 22,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: isDark ? '#27272a' : '#f4f4f5',
+                    opacity: pressed ? 0.7 : 1
+                })}
             >
-                <Feather name="type" size={20} color={Platform.OS === 'ios' ? '#000' : '#888'} />
+                <Feather name="type" size={20} color={Platform.OS === 'ios' ? (isDark ? '#fff' : '#000') : '#888'} />
             </Pressable>
         </Animated.View>
     );

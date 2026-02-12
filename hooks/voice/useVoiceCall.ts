@@ -1,14 +1,15 @@
+import { parseCoachResponse } from '@/lib/ai/parser'
 import { Coach } from '@/lib/coaches'
 import {
   VAPI_DEFAULT_ASSISTANT_ID,
   VAPI_DEFAULT_VOICE_ID,
   VAPI_DEFAULT_VOICE_PROVIDER,
-  VAPI_PUBLIC_KEY,
-  VAPI_WEBHOOK_URL,
+  VAPI_PUBLIC_KEY
 } from '@/lib/vapi/config'
 import { VapiService } from '@/lib/vapi/VapiService'
 import { buildCoachSystemPrompt } from '@/lib/voice/coachPrompt'
 import { CallState } from '@/lib/voice/types'
+import { CoachResponse } from '@/types/coach'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type UseVoiceCallOptions = {
@@ -21,6 +22,8 @@ type UseVoiceCallOptions = {
 export function useVoiceCall({ coach, userName, userId, onError }: UseVoiceCallOptions) {
   const [state, setState] = useState<CallState>('idle')
   const [error, setError] = useState<string | null>(null)
+  const [coachResponse, setCoachResponse] = useState<CoachResponse | null>(null)
+  const [debugLogged, setDebugLogged] = useState(false)
 
   const service = useMemo(() => new VapiService(VAPI_PUBLIC_KEY || ''), [])
 
@@ -30,13 +33,19 @@ export function useVoiceCall({ coach, userName, userId, onError }: UseVoiceCallO
     const handleSpeechStart = () => setState('speaking')
     const handleSpeechEnd = () => setState('listening')
     const handleMessage = (msg: any) => {
+      // Handle structured assistant response
+      if (msg.type === 'transcript' && msg.role === 'assistant' && msg.transcriptType === 'final') {
+        const parsed = parseCoachResponse(msg.transcript)
+        if (parsed) {
+          setCoachResponse(parsed)
+          console.log('[useVoiceCall] Successfully parsed coach response:', parsed.mood_detected)
+        }
+      }
+
       // Vapi sends 'conversation-update' or 'function-call'
       // We will listen for the specific function call we define in the system prompt
       if (msg.type === 'function-call' && msg.functionCall?.name === 'generate_response') {
         setState('thinking');
-        // This is where we would trigger the Gemini Edge Function
-        // For now, we just log it. The actual edge function call happens on the server (Vapi Webhook).
-        // But we need to know on the client to update UI state.
         console.log('Vapi requesting response for:', msg.functionCall.parameters.transcript);
       }
     }
@@ -106,7 +115,7 @@ export function useVoiceCall({ coach, userName, userId, onError }: UseVoiceCallO
           userName,
           userId: userId || '',
         },
-        serverUrl: VAPI_WEBHOOK_URL,
+        // serverUrl: VAPI_WEBHOOK_URL,
       })
     } catch (err: any) {
       const message = err?.message || 'Call failed'
@@ -124,6 +133,7 @@ export function useVoiceCall({ coach, userName, userId, onError }: UseVoiceCallO
   return {
     state,
     error,
+    coachResponse,
     startCall,
     endCall,
   }

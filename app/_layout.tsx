@@ -2,7 +2,7 @@
 import { AuthProvider } from '@/ctx/AuthContext';
 import { SubscriptionProvider } from '@/ctx/SubscriptionContext';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack, usePathname } from 'expo-router';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
@@ -18,18 +18,24 @@ import Animated, {
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '../global.css';
 
+import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
+
+// Disable Reanimated strict mode to avoid noisy warnings and potential stringification issues
+configureReanimatedLogger({
+  level: ReanimatedLogLevel.warn,
+  strict: false,
+});
+
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const pathname = usePathname();
   const [isAppReady, setIsAppReady] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
 
   // Animation values
   const logoScale = useSharedValue(1);
-  const splashOpacity = useSharedValue(1);
 
   useEffect(() => {
     // Breathing animation
@@ -55,13 +61,12 @@ export default function RootLayout() {
     transform: [{ scale: logoScale.value }],
   }));
 
-  const bgStyle = {
-    backgroundColor: colorScheme === 'dark' ? '#020617' : '#f8fafc',
-  };
+  const isDark = colorScheme === 'dark';
+  const backgroundColor = isDark ? '#020617' : '#f8fafc';
 
   if (!isAppReady && showSplash) {
     return (
-      <View style={[{ flex: 1, alignItems: 'center', justifyContent: 'center' }, bgStyle]}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor }}>
         <Animated.View style={animatedLogoStyle}>
           <Image
             source={require('../assets/images/icon.png')}
@@ -74,16 +79,14 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider style={[{ flex: 1 }, bgStyle]}>
+    <SafeAreaProvider>
       <AuthProvider>
         <SubscriptionProvider>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <View style={[{ flex: 1 }, bgStyle]}>
-              <Stack screenOptions={{
-                headerShown: false,
-                contentStyle: bgStyle
-              }} />
-            </View>
+          <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+            <Stack screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor }
+            }} />
             <StatusBar style="auto" />
           </ThemeProvider>
         </SubscriptionProvider>

@@ -87,6 +87,13 @@ export function SubscriptionProvider({
     const Purchases = getPurchases();
     if (!Purchases) return;
 
+    if (Purchases) {
+      const canPay = await Purchases.canMakePayments();
+      if (!canPay) {
+        console.warn('[RevenueCat] Device or user is not allowed to make payments (billing unavailable)');
+      }
+    }
+
     try {
       const res = await Purchases.getOfferings();
       setOfferings(res.current ?? null);
@@ -94,6 +101,7 @@ export function SubscriptionProvider({
       console.error('Failed to fetch offerings', e);
     }
   };
+
 
   // 🚀 INIT
   useEffect(() => {
